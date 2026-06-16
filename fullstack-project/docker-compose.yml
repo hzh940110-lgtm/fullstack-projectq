@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # MySQL 数据库
+  mysql:
+    image: mysql:8.0
+    container_name: fullstack_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: fullstack_db
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: fullstack_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 后端 FastAPI
+  backend:
+    build: ./backend
+    container_name: fullstack_backend
+    environment:
+      DATABASE_URL: mysql+pymysql://root:root123@mysql:3306/fullstack_db
+      REDIS_HOST: redis
+    ports:
+      - "8000:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+
+  # 前端 Vue
+  frontend:
+    build: ./frontend
+    container_name: fullstack_frontend
+    ports:
+      - "8080:80"  # 改成 8080 端口
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:
